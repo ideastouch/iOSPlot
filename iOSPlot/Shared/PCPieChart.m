@@ -675,6 +675,19 @@
 
 -(void)addDeltaAngleTillCenter: (id)obj
 {
+    CGAffineTransform currentTransform = self.transform;
+	CGAffineTransform newTransform = CGAffineTransformRotate(currentTransform,M_PI_2);
+    
+    
+    
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:1.0];
+    [UIView setAnimationCurve:UIViewAnimationCurveEaseOut];
+	[self setTransform:newTransform];
+    [UIView commitAnimations];
+
+    
+    /*
     [NSThread sleepForTimeInterval:0.07f]; //minimun delay for iPad
     PCPieComponent *component = obj;
     float targetAngle = 360 - (component.startDeg + component.endDeg) * 0.5f + 90;
@@ -692,6 +705,7 @@
     [NSThread detachNewThreadSelector:@selector(addDeltaAngleTillCenter:)
                              toTarget:self
                            withObject:component];
+    */
 }
 
 @end
