@@ -58,6 +58,9 @@
             component.delegate = self;
 			[components addObject:component];
 			
+            //float blue = 0.7 + 0.3 / [[sampleInfo objectForKey:@"data"] count] * i;
+            //[component setColour:[UIColor colorWithRed:0.05+0.5*blue green:0.15+0.7*blue blue:blue alpha:1]];
+            
 			if (i==0)
 			{
 				[component setColour:PCColorYellow];

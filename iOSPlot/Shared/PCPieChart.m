@@ -675,7 +675,7 @@
 
 -(void)addDeltaAngleTillCenter: (id)obj
 {
-    [NSThread sleepForTimeInterval:0.015f];
+    [NSThread sleepForTimeInterval:0.07f]; //minimun delay for iPad
     PCPieComponent *component = obj;
     float targetAngle = 360 - (component.startDeg + component.endDeg) * 0.5f + 90;
     if(targetAngle < 0) targetAngle += 360;
