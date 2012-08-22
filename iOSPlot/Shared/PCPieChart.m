@@ -233,8 +233,10 @@
         CGContextSetFillColorWithColor(ctx, [component.colour CGColor]);
         CGContextMoveToPoint(ctx, center.x, center.y);
         //CGContextAddArc(ctx, origin_x, origin_y, radius, (nextStartDeg-90)*M_PI/180.0, (endDeg-90)*M_PI/180.0, 0);
+        //CGContextAddArc(ctx, center.x, center.y, radius,
+        //                (component.startDeg-90+_deltaRotation)*M_PI/180.0, (component.endDeg-90+_deltaRotation)*M_PI/180.0, 0);
         CGContextAddArc(ctx, center.x, center.y, radius,
-                        (component.startDeg-90+_deltaRotation)*M_PI/180.0, (component.endDeg-90+_deltaRotation)*M_PI/180.0, 0);
+                        (component.startDeg-90)*M_PI/180.0, (component.endDeg-90)*M_PI/180.0, 0);
         CGContextClosePath(ctx);
         CGContextFillPath(ctx);
         
@@ -242,8 +244,10 @@
         CGContextSetLineWidth(ctx, gap);
         CGContextMoveToPoint(ctx, center.x, center.y);
         //CGContextAddArc(ctx, origin_x, origin_y, radius, (nextStartDeg-90)*M_PI/180.0, (endDeg-90)*M_PI/180.0, 0);
+        //CGContextAddArc(ctx, center.x, center.y, radius,
+        //                (component.startDeg-90+_deltaRotation)*M_PI/180.0, (component.endDeg-90+_deltaRotation)*M_PI/180.0, 0);
         CGContextAddArc(ctx, center.x, center.y, radius,
-                        (component.startDeg-90+_deltaRotation)*M_PI/180.0, (component.endDeg-90+_deltaRotation)*M_PI/180.0, 0);
+                        (component.startDeg-90)*M_PI/180.0, (component.endDeg-90)*M_PI/180.0, 0);
         CGContextClosePath(ctx);
         CGContextStrokePath(ctx);
         
@@ -532,7 +536,6 @@
 
 - (void)drawPercentValuesOnChart: (CGPoint)center
 {
-    return;
     float nextStartDeg;
     float endDeg = 0;
     float total = 0;
@@ -561,6 +564,8 @@
                                       optimumSize.height);
         [percentageText drawInRect:percFrame withFont:self.titleFont lineBreakMode:UILineBreakModeWordWrap alignment:UITextAlignmentRight];
     }
+    //CGContextRotateCTM(ctx, -_deltaRotation / 180.f * M_PI);
+    
 }
 
 - (void)drawRect:(CGRect)rect
@@ -631,7 +636,6 @@
     float angle=atan2f((touchPointOnSelf.y - _centerCircle.y), (touchPointOnSelf.x -  _centerCircle.x)) * 180.f / M_PI;
     angle = AngleGrad360(angle);
     angle += 90; // Chart alligment.
-    //angle -= _deltaRotation;
     angle = AngleGrad360(angle);
     for (PCPieComponent *component in self.components) {
         if (angle > component.startDeg && angle < component.endDeg) {
@@ -642,12 +646,27 @@
                 _deltaRotation = AngleGrad360(targetAngle + _deltaRotation);
                 CGAffineTransform currentTransform = self.transform;
                 CGAffineTransform newTransform = CGAffineTransformRotate(currentTransform,targetAngle/180.f*M_PI);
-                
+                /*
                 [UIView beginAnimations:nil context:nil];
                 [UIView setAnimationDuration:1.0];
                 [UIView setAnimationCurve:UIViewAnimationCurveEaseOut];
-                [self setTransform:newTransform];
+                [self setTransform:newTransform];*/
+                
+                [UIView animateWithDuration:1.0
+                                      delay:0
+                                    options:UIViewAnimationCurveEaseOut
+                                 animations:^(void){
+                                     [self setTransform:newTransform];
+                                 }
+                                 completion:^(BOOL finished){
+                                     [self setNeedsDisplay];
+                                 }];
+                
+                
                 [UIView commitAnimations];
+                //[NSThread detachNewThreadSelector:@selector(setToNeedsDisplay:)
+                //                                                   toTarget:self
+                //                                                 withObject:nil];
             }
             else {
                 if (component.delegate) {
