@@ -36,6 +36,8 @@
 
 #import "PieChartPopover.h"
 
+#define AngleGrad360(angle) (remainderf(angle,360.f) < 0)? remainderf(angle,360.f)+360 : remainderf(angle,360.f)
+
 @interface PCPieComponent()
 
 @property float startDeg, endDeg;
@@ -75,6 +77,9 @@
 
 @property (strong, nonatomic) UITapGestureRecognizer  *tapGesture;
 
+@property (nonatomic, assign) CGPoint originCircle;
+@property (nonatomic, assign) CGPoint centerCircle;
+@property (nonatomic, strong) UIView  *viewCircle;
 @property (nonatomic, assign) float deltaRotation;
 @property (nonatomic, assign) int diameterInnerCircle;
 @property (nonatomic, strong) UIFont *titleFontInnerCircle;
@@ -118,10 +123,7 @@
 
 - (void)setDeltaRotation:(float)deltaRotation
 {
-    _deltaRotation = deltaRotation;
-    if (_deltaRotation >= 360.f) {
-        _deltaRotation = remainderf(_deltaRotation, 360.f);
-    }
+    _deltaRotation = AngleGrad360(deltaRotation);
 }
 
 - (void)setComponents:(NSMutableArray *)components
@@ -530,6 +532,7 @@
 
 - (void)drawPercentValuesOnChart: (CGPoint)center
 {
+    return;
     float nextStartDeg;
     float endDeg = 0;
     float total = 0;
@@ -565,25 +568,24 @@
     if (self.diameter==0)
     {
         self.diameter = MIN(rect.size.width, rect.size.height) - 2 * MARGIN;
-        _diameterInnerCircle = _diameter / 3.f;
     }
-    CGPoint origin = CGPointMake((rect.size.width - self.diameter) * 0.5f,
-                                 (rect.size.height - self.diameter) * 0.5f);
-    CGPoint center = CGPointMake(rect.size.width*0.5f, rect.size.height*0.5f);
-    
+    _diameterInnerCircle = _diameter / 3.f;
+    _originCircle = CGPointMake((rect.size.width - self.diameter) * 0.5f,
+                                (rect.size.height - self.diameter) * 0.5f);
+    _centerCircle = CGPointMake(rect.size.width*0.5f, rect.size.height*0.5f);
     
     if ([self.components count]>0)
     {
-        [self drawCicleBackground: origin];
+        [self drawCicleBackground: _originCircle];
 
-		[self drawChartPortions: center];
+		[self drawChartPortions: _centerCircle];
         
         if (_showValuesInChart)
-            [self drawPercentValuesOnChart:center];
+            [self drawPercentValuesOnChart:_centerCircle];
         else
-            [self drawPercentValuesOnOrigin:origin andCenter:center];
+            [self drawPercentValuesOnOrigin:_originCircle andCenter:_centerCircle];
         if (_showInnerCircle)
-            [self drawInnerCircle: center];
+            [self drawInnerCircle: _centerCircle];
     }
 }
 
@@ -609,34 +611,43 @@
 #pragma mark actions
 -(void)TapByUser:(id)sender
 {
-    CGRect rect = self.frame;
-    float origin_x = rect.size.width*0.5f;
-    float origin_y = rect.size.height*0.5f;
+    //CGRect rect = self.frame;
+    //float origin_x = rect.size.width*0.5f;
+    //float origin_y = rect.size.height*0.5f;
     
     //Find by what angle it has to rotate
     CGPoint touchPointOnSelf=[(UITapGestureRecognizer *)sender locationInView:self];
     if (_showInnerCircle &&
-        powf(touchPointOnSelf.x-origin_x, 2.f) + powf(touchPointOnSelf.y-origin_y,2.f) <= powf(_diameterInnerCircle*0.5f,2.f)) {
+        powf(touchPointOnSelf.x-_centerCircle.x, 2.f) + powf(touchPointOnSelf.y-_centerCircle.y,2.f) <= powf(_diameterInnerCircle*0.5f,2.f)) {
         NSLog(@"Touch inside Inner Circle");
         return;
     }
-    if (powf(touchPointOnSelf.x-origin_x, 2.f) + powf(touchPointOnSelf.y-origin_y,2.f) > powf(_diameter*0.5f,2.f)){
+    if (powf(touchPointOnSelf.x-_centerCircle.x, 2.f) + powf(touchPointOnSelf.y-_centerCircle.y,2.f) > powf(_diameter*0.5f,2.f)){
         NSLog(@"Touch outside");
         return;
     }
     NSLog(@"Touch inside");
     
-    float angle=atan2f((touchPointOnSelf.y - origin_y), (touchPointOnSelf.x -  origin_x)) * 180.f / M_PI;
-    if(angle<0) angle += 360;
+    float angle=atan2f((touchPointOnSelf.y - _centerCircle.y), (touchPointOnSelf.x -  _centerCircle.x)) * 180.f / M_PI;
+    angle = AngleGrad360(angle);
     angle += 90; // Chart alligment.
-    angle -= _deltaRotation;
-    if (angle >= 360.f) angle = remainderf(angle, 360.f);
+    //angle -= _deltaRotation;
+    angle = AngleGrad360(angle);
     for (PCPieComponent *component in self.components) {
         if (angle > component.startDeg && angle < component.endDeg) {
             if (_touchAnimated) {
-                [NSThread detachNewThreadSelector:@selector(addDeltaAngleTillCenter:)
-                                         toTarget:self
-                                       withObject:component];
+                float targetAngle =  90 - (component.startDeg + component.endDeg) * 0.5f;
+                targetAngle = AngleGrad360(targetAngle);
+                targetAngle = AngleGrad360(targetAngle-_deltaRotation);
+                _deltaRotation = AngleGrad360(targetAngle + _deltaRotation);
+                CGAffineTransform currentTransform = self.transform;
+                CGAffineTransform newTransform = CGAffineTransformRotate(currentTransform,targetAngle/180.f*M_PI);
+                
+                [UIView beginAnimations:nil context:nil];
+                [UIView setAnimationDuration:1.0];
+                [UIView setAnimationCurve:UIViewAnimationCurveEaseOut];
+                [self setTransform:newTransform];
+                [UIView commitAnimations];
             }
             else {
                 if (component.delegate) {
@@ -672,25 +683,10 @@
 
 -(void)addDeltaAngleTillCenter: (id)obj
 {
-    /*
-    CGAffineTransform currentTransform = self.transform;
-	CGAffineTransform newTransform = CGAffineTransformRotate(currentTransform,M_PI_2);
-    
-    
-    
-    [UIView beginAnimations:nil context:nil];
-    [UIView setAnimationDuration:1.0];
-    [UIView setAnimationCurve:UIViewAnimationCurveEaseOut];
-	[self setTransform:newTransform];
-    [UIView commitAnimations];
-     */
-    
-    
     [NSThread sleepForTimeInterval:0.07f]; //minimun delay for iPad
     PCPieComponent *component = obj;
     float targetAngle = 360 - (component.startDeg + component.endDeg) * 0.5f + 90;
-    if(targetAngle < 0) targetAngle += 360;
-    if (targetAngle >= 360.f) targetAngle = remainderf(targetAngle, 360.f);
+    targetAngle = AngleGrad360(targetAngle);
     if (ceilf(_deltaRotation) == ceilf(targetAngle)) {
         if (component.delegate)
             [self performSelectorOnMainThread:@selector(popovermethod:)
@@ -703,6 +699,7 @@
     [NSThread detachNewThreadSelector:@selector(addDeltaAngleTillCenter:)
                              toTarget:self
                            withObject:component];
+    
 }
 
 @end
