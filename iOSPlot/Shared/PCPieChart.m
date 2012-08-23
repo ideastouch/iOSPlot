@@ -75,19 +75,21 @@
 
 @interface PCPieChart() <UIGestureRecognizerDelegate>
 
-@property (strong, nonatomic) UITapGestureRecognizer  *tapGesture;
+@property (nonatomic, strong) UITapGestureRecognizer  *tapGesture;
 
-@property (nonatomic, assign) CGPoint originCircle;
-@property (nonatomic, assign) CGPoint centerCircle;
+@property (nonatomic, unsafe_unretained) CGPoint originCircle;
+@property (nonatomic, unsafe_unretained) CGPoint centerCircle;
 @property (nonatomic, strong) UIView  *viewCircle;
-@property (nonatomic, assign) float deltaRotation;
-@property (nonatomic, assign) int diameterInnerCircle;
+@property (nonatomic, unsafe_unretained) float deltaRotation;
+@property (nonatomic, unsafe_unretained) int diameterInnerCircle;
 @property (nonatomic, strong) UIFont *titleFontInnerCircle;
+@property (nonatomic, unsafe_unretained) CGFloat detailsAlpha;
 
-- (void)drawCicleBackground: (CGPoint)center;
-- (void)drawInnerCircle: (CGPoint)center;
-- (void)drawChartPortions: (CGPoint)center;
-- (void)drawPercentValuesOnChart: (CGPoint)center;
+- (void)drawCicleBackground;
+- (void)drawInnerCircle;
+- (void)drawChartPortions;
+- (void)drawPercentValues;
+- (void)drawPercentValuesOnChart;
 
 + (NSArray*) sortComponents: (NSArray*)components;
 
@@ -105,6 +107,7 @@
         // Initialization code
         [self setBackgroundColor:[UIColor clearColor]];
 		
+        _detailsAlpha = 1.f;
 		_titleFont = [UIFont boldSystemFontOfSize:10];
 		_percentageFont = [UIFont boldSystemFontOfSize:20];
 		_showArrow = YES;
@@ -169,22 +172,23 @@
 #define ARROW_HEAD_WIDTH 4
 
 #pragma mark draw methods
-- (void)drawCicleBackground: (CGPoint)center
+- (void)drawCicleBackground
 {
+    return;
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     UIGraphicsPushContext(ctx);
     CGContextSetRGBFillColor(ctx, 1.0f, 1.0f, 1.0f, 1.0f);  // white color
     CGContextSetShadow(ctx, CGSizeMake(0.0f, 0.0f), 15);
     // a white filled circle with a diameter of 100 pixels, centered in (60, 60)
-    CGContextFillEllipseInRect(ctx, CGRectMake(center.x, center.y, self.diameter, self.diameter));
+    CGContextFillEllipseInRect(ctx, CGRectMake(_centerCircle.x, _centerCircle.y, self.diameter, self.diameter));
     UIGraphicsPopContext();
     CGContextSetShadow(ctx, CGSizeMake(0.0f, 0.0f), 0);
 }
 
-- (void)drawInnerCircle: (CGPoint)center
+- (void)drawInnerCircle
 {
-    float x_innerCircle = center.x - _diameterInnerCircle * 0.5f;
-    float y_innerCircle = center.y - _diameterInnerCircle * 0.5f;
+    float x_innerCircle = _centerCircle.x - _diameterInnerCircle * 0.5f;
+    float y_innerCircle = _centerCircle.y - _diameterInnerCircle * 0.5f;
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     UIGraphicsPushContext(ctx);
     CGContextSetFillColorWithColor(ctx, [PCColorInnerCircle CGColor]);
@@ -211,7 +215,11 @@
         CGRect titleFrame = CGRectMake(text_x, text_y, width, height);
         
         UIGraphicsPushContext(ctx);
-        CGContextSetFillColorWithColor(ctx, [PCColorTextInnerCircle CGColor]);
+        CGFloat color[4];
+        [PCColorTextInnerCircle getRed:color green:color+1 blue:color+2 alpha:color+3];
+        color[3] = _detailsAlpha;
+        //CGContextSetFillColorWithColor(ctx, [PCColorTextInnerCircle CGColor]);
+        CGContextSetFillColor(ctx, color);
         [_titleInnerCircle drawInRect:titleFrame
                              withFont:_titleFontInnerCircle
                         lineBreakMode:UILineBreakModeWordWrap
@@ -220,43 +228,36 @@
     }
 }
 
-- (void)drawChartPortions: (CGPoint)center
+- (void)drawChartPortions
 {
     float radius = self.diameter * 0.5f;
     float gap = 1;
     CGContextRef ctx = UIGraphicsGetCurrentContext();
     for (PCPieComponent *component in _components)
     {
-        //float perc = component.value / total;
-        //endDeg = nextStartDeg+perc*360;
-        
         CGContextSetFillColorWithColor(ctx, [component.colour CGColor]);
-        CGContextMoveToPoint(ctx, center.x, center.y);
-        //CGContextAddArc(ctx, origin_x, origin_y, radius, (nextStartDeg-90)*M_PI/180.0, (endDeg-90)*M_PI/180.0, 0);
-        CGContextAddArc(ctx, center.x, center.y, radius,
-                        (component.startDeg-90+_deltaRotation)*M_PI/180.0, (component.endDeg-90+_deltaRotation)*M_PI/180.0, 0);
+        CGContextMoveToPoint(ctx, _centerCircle.x, _centerCircle.y);
+        CGContextAddArc(ctx, _centerCircle.x, _centerCircle.y, radius,
+                        (component.startDeg-90)*M_PI/180.0, (component.endDeg-90)*M_PI/180.0, 0);
         CGContextClosePath(ctx);
         CGContextFillPath(ctx);
         
         CGContextSetRGBStrokeColor(ctx, 1, 1, 1, 1);
         CGContextSetLineWidth(ctx, gap);
-        CGContextMoveToPoint(ctx, center.x, center.y);
-        //CGContextAddArc(ctx, origin_x, origin_y, radius, (nextStartDeg-90)*M_PI/180.0, (endDeg-90)*M_PI/180.0, 0);
-        CGContextAddArc(ctx, center.x, center.y, radius,
-                        (component.startDeg-90+_deltaRotation)*M_PI/180.0, (component.endDeg-90+_deltaRotation)*M_PI/180.0, 0);
+        CGContextMoveToPoint(ctx, _centerCircle.x, _centerCircle.y);
+        CGContextAddArc(ctx, _centerCircle.x, _centerCircle.y, radius,
+                        (component.startDeg-90)*M_PI/180.0, (component.endDeg-90)*M_PI/180.0, 0);
         CGContextClosePath(ctx);
         CGContextStrokePath(ctx);
-        
-        //nextStartDeg = endDeg;
     }
 }
 
-- (void)drawPercentValuesOnOrigin: (CGPoint)origin andCenter: (CGPoint)center
+- (void)drawPercentValues
 {
     float radius = self.diameter * 0.5f;
     float left_label_y = MARGIN;
     float right_label_y = MARGIN;
-    float max_text_width = origin.x -  10;
+    float max_text_width = _originCircle.x -  10;
     float total = 0;
     for (PCPieComponent *component in self.components)
         total += component.value;
@@ -310,10 +311,10 @@
                 CGContextSetRGBStrokeColor(ctx, 0.2f, 0.2f, 0.2f, 1);
                 CGContextSetRGBFillColor(ctx, 0.0f, 0.0f, 0.0f, 1.0f);
                 
-                int x1 = radius/4*3*cos((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+center.x;
-                int y1 = radius/4*3*sin((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+center.y;
+                int x1 = radius/4*3*cos((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+_centerCircle.x;
+                int y1 = radius/4*3*sin((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+_centerCircle.y;
                 CGContextSetLineWidth(ctx, 1);
-                if (left_label_y + optimumSize.height/2 < origin.y)//(left_label_y==LABEL_TOP_MARGIN)
+                if (left_label_y + optimumSize.height/2 < _originCircle.y)//(left_label_y==LABEL_TOP_MARGIN)
                 {
                     
                     CGContextMoveToPoint(ctx, 5 + max_text_width, left_label_y + optimumSize.height/2);
@@ -332,7 +333,7 @@
                 {
                     
                     CGContextMoveToPoint(ctx, 5 + max_text_width, left_label_y + optimumSize.height/2);
-                    if (left_label_y + optimumSize.height/2 > origin.y + self.diameter)
+                    if (left_label_y + optimumSize.height/2 > _originCircle.y + self.diameter)
                     {
                         CGContextAddLineToPoint(ctx, x1, left_label_y + optimumSize.height/2);
                         CGContextAddLineToPoint(ctx, x1, y1);
@@ -417,7 +418,7 @@
                 CGContextSetRGBFillColor(ctx, 0.1f, 0.1f, 0.1f, 1.0f);
             CGContextSetShadow(ctx, CGSizeMake(0.0f, 0.0f), 2);
             
-            float text_x = origin.x + self.diameter + 10;
+            float text_x = _originCircle.x + self.diameter + 10;
             NSString *percentageText = [NSString stringWithFormat:@"%.1f%%", component.value/total*100];
             CGSize optimumSize = [percentageText sizeWithFont:self.percentageFont constrainedToSize:CGSizeMake(max_text_width,100)];
             CGRect percFrame = CGRectMake(text_x, right_label_y, optimumSize.width, optimumSize.height);
@@ -444,11 +445,11 @@
                 CGContextSetRGBFillColor(ctx, 0.0f, 0.0f, 0.0f, 1.0f);
                 
                 CGContextSetLineWidth(ctx, 1);
-                int x1 = radius/4*3*cos((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+center.x;
-                int y1 = radius/4*3*sin((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+center.y;
+                int x1 = radius/4*3*cos((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+_centerCircle.x;
+                int y1 = radius/4*3*sin((nextStartDeg+component.value/total*360/2-90)*M_PI/180.0)+_centerCircle.y;
                 
                 
-                if (right_label_y + optimumSize.height/2 < origin.y)//(right_label_y==LABEL_TOP_MARGIN)
+                if (right_label_y + optimumSize.height/2 < _originCircle.y)//(right_label_y==LABEL_TOP_MARGIN)
                 {
                     
                     CGContextMoveToPoint(ctx, text_x - 3, right_label_y + optimumSize.height/2);
@@ -530,9 +531,8 @@
     }
 }
 
-- (void)drawPercentValuesOnChart: (CGPoint)center
+- (void)drawPercentValuesOnChart
 {
-    return;
     float nextStartDeg;
     float endDeg = 0;
     float total = 0;
@@ -540,6 +540,7 @@
         total += component.value;
     
     CGContextRef ctx = UIGraphicsGetCurrentContext();
+    
     for (PCPieComponent *component in _components)
     {
         nextStartDeg = component.startDeg + _deltaRotation;
@@ -550,13 +551,13 @@
         float origin_y_label =  - sinf(angle_rad) * _diameter * 0.5f * 0.75f;
         
         CGContextSetShadow(ctx, CGSizeMake(1.f, 1.0f), .6f);
-        CGContextSetRGBFillColor(ctx, 0.4f, 0.4f, 0.4f, 1.0f);
+        CGContextSetRGBFillColor(ctx, 0.4f, 0.4f, 0.4f, _detailsAlpha);
         
         //float text_x = x + 10;
         NSString *percentageText = [NSString stringWithFormat:@"%.1f%%", component.value/total*100];
         CGSize optimumSize = [percentageText sizeWithFont:self.titleFont];
-        CGRect percFrame = CGRectMake(center.x+origin_x_label - optimumSize.width * 0.5f,
-                                      center.y+origin_y_label - optimumSize.height * 0.5f,
+        CGRect percFrame = CGRectMake(_centerCircle.x+origin_x_label - optimumSize.width * 0.5f,
+                                      _centerCircle.y+origin_y_label - optimumSize.height * 0.5f,
                                       optimumSize.width,
                                       optimumSize.height);
         [percentageText drawInRect:percFrame withFont:self.titleFont lineBreakMode:UILineBreakModeWordWrap alignment:UITextAlignmentRight];
@@ -576,16 +577,21 @@
     
     if ([self.components count]>0)
     {
-        [self drawCicleBackground: _originCircle];
+        [self drawCicleBackground];
 
-		[self drawChartPortions: _centerCircle];
+		[self drawChartPortions];
+        
+        CGContextRef ctx = UIGraphicsGetCurrentContext();
+        CGContextTranslateCTM(ctx, _centerCircle.x, _centerCircle.y);
+        CGContextRotateCTM(ctx, -_deltaRotation / 180.f * M_PI );
+        CGContextTranslateCTM(ctx, -_centerCircle.x, -_centerCircle.y);
         
         if (_showValuesInChart)
-            [self drawPercentValuesOnChart:_centerCircle];
+            [self drawPercentValuesOnChart];
         else
-            [self drawPercentValuesOnOrigin:_originCircle andCenter:_centerCircle];
+            [self drawPercentValues];
         if (_showInnerCircle)
-            [self drawInnerCircle: _centerCircle];
+            [self drawInnerCircle];
     }
 }
 
@@ -631,23 +637,31 @@
     float angle=atan2f((touchPointOnSelf.y - _centerCircle.y), (touchPointOnSelf.x -  _centerCircle.x)) * 180.f / M_PI;
     angle = AngleGrad360(angle);
     angle += 90; // Chart alligment.
-    //angle -= _deltaRotation;
     angle = AngleGrad360(angle);
     for (PCPieComponent *component in self.components) {
         if (angle > component.startDeg && angle < component.endDeg) {
             if (_touchAnimated) {
+                [NSThread detachNewThreadSelector:@selector(redrawTillAlpha:)
+                                         toTarget:self
+                                       withObject:[NSNumber numberWithFloat:0.f]];
+
                 float targetAngle =  90 - (component.startDeg + component.endDeg) * 0.5f;
                 targetAngle = AngleGrad360(targetAngle);
                 targetAngle = AngleGrad360(targetAngle-_deltaRotation);
-                _deltaRotation = AngleGrad360(targetAngle + _deltaRotation);
-                CGAffineTransform currentTransform = self.transform;
-                CGAffineTransform newTransform = CGAffineTransformRotate(currentTransform,targetAngle/180.f*M_PI);
-                
-                [UIView beginAnimations:nil context:nil];
-                [UIView setAnimationDuration:1.0];
-                [UIView setAnimationCurve:UIViewAnimationCurveEaseOut];
-                [self setTransform:newTransform];
-                [UIView commitAnimations];
+                [UIView animateWithDuration:1.0
+                                      delay:0.7
+                                    options:UIViewAnimationCurveEaseOut
+                                 animations:^(){
+                                     CGAffineTransform currentTransform = self.transform;
+                                     CGAffineTransform newTransform = CGAffineTransformRotate(currentTransform,targetAngle/180.f*M_PI);
+                                     [self setTransform:newTransform];
+                                 }
+                                 completion:^(BOOL finished){
+                                     _deltaRotation = AngleGrad360(targetAngle + _deltaRotation);
+                                     [NSThread detachNewThreadSelector:@selector(redrawTillAlpha:)
+                                                              toTarget:self
+                                                            withObject:[NSNumber numberWithFloat:1.f]];
+                                 }];
             }
             else {
                 if (component.delegate) {
@@ -679,6 +693,28 @@
     [self addSubview:view];
     [popoverController presentPopoverFromView:view];
     [view removeFromSuperview];
+}
+
+-(void)redrawTillAlpha: (NSNumber*)alphaNumber
+{
+    [NSThread sleepForTimeInterval:0.07f]; //minimun delay for iPad
+    CGFloat alpha = alphaNumber.floatValue;
+    if (_detailsAlpha != alpha) {
+        if (_detailsAlpha < alpha) {
+            _detailsAlpha += 0.107;
+            if (_detailsAlpha > alpha)
+                _detailsAlpha = alpha;
+        }
+        if (_detailsAlpha > alpha) {
+            _detailsAlpha -= 0.107;
+            if (_detailsAlpha < alpha)
+                _detailsAlpha = alpha;
+        }
+        [NSThread detachNewThreadSelector:@selector(redrawTillAlpha:)
+                                 toTarget:self
+                               withObject:alphaNumber];
+    }
+    [self setNeedsDisplay];
 }
 
 -(void)addDeltaAngleTillCenter: (id)obj
